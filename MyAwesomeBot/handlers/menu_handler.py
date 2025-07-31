@@ -11,15 +11,11 @@ async def create_main_menu_keyboard() -> ReplyKeyboardMarkup:
     """Создает клавиатуру с основными кнопками."""
     keyboard = ReplyKeyboardMarkup(
         keyboard=[
-            [KeyboardButton(text="Создать видео")],
-            [
-                KeyboardButton(text="Мой баланс"),
-                KeyboardButton(text="Пополнить баланс")
-            ],
-            [
-                KeyboardButton(text="Канал с промтами"),
-                KeyboardButton(text="Служба поддержки")
-            ]
+            [KeyboardButton(text="🎬 Создать видео")],
+            [KeyboardButton(text="💰 Мой баланс")],
+            [KeyboardButton(text="💳 Пополнить баланс")],
+            [KeyboardButton(text="📚 Канал с промтами")],
+            [KeyboardButton(text="📞 Служба поддержки")]
         ],
         resize_keyboard=True,
         input_field_placeholder="Выберите действие..."
@@ -28,26 +24,21 @@ async def create_main_menu_keyboard() -> ReplyKeyboardMarkup:
 
 @router.message(F.text == "Создать видео")
 async def handle_create_video(message: Message):
-    """Обрабатывает нажатие на кнопку 'Создать видео'."""
     pass
 
 @router.message(F.text == "Мой баланс")
 async def handle_my_balance(message: Message):
-    """Обрабатывает нажатие на кнопку 'Мой баланс'."""
     user_balance = await get_user_balance(message.from_user.id)
     await message.answer(f"Твой текущий баланс: **{user_balance}** кредитов.")
 
 @router.message(F.text == "Пополнить баланс")
 async def handle_top_up_balance(message: Message):
-    """Обрабатывает нажатие на кнопку 'Пополнить баланс'."""
     pass
 
 @router.message(F.text == "Канал с промтами")
 async def handle_prompts_channel(message: Message):
-    """Обрабатывает нажатие на кнопку 'Канал с промтами'."""
     await message.answer(f"Подписывайся на наш канал, чтобы не пропустить новые промты: <a href='{PROMPTS_CHANNEL_LINK}'>Канал с промтами</a>")
 
 @router.message(F.text == "Служба поддержки")
 async def handle_support(message: Message):
-    """Обрабатывает нажатие на кнопку 'Служба поддержки'."""
     await message.answer(f"Если у тебя есть вопросы, напиши в нашу службу поддержки: <a href='{SUPPORT_LINK}'>Служба поддержки</a>.")

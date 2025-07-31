@@ -4,6 +4,7 @@ import logging
 from aiogram import Bot, Dispatcher
 from aiogram.enums.parse_mode import ParseMode
 from aiogram.fsm.storage.memory import MemoryStorage
+from aiogram.client.default import DefaultBotProperties # <-- Добавили этот импорт
 
 from config import BOT_TOKEN
 from handlers.start_handler import router as start_router
@@ -17,7 +18,8 @@ from database import init_db
 logging.basicConfig(level=logging.INFO)
 
 # Инициализируем бота и диспетчер
-bot = Bot(token=BOT_TOKEN, parse_mode=ParseMode.HTML)
+# Исправленная строка инициализации бота
+bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
 dp = Dispatcher(storage=MemoryStorage())
 
 async def main():
