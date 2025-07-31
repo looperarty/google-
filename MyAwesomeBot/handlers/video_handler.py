@@ -7,7 +7,7 @@ from aiogram.fsm.state import State, StatesGroup
 
 from database import get_user_balance, deduct_balance
 from handlers.menu_handler import create_main_menu_keyboard
-from handlers.common_handlers import create_cancel_keyboard, delete_message_if_exists # <-- Добавили этот импорт
+from handlers.common_handlers import create_cancel_keyboard, delete_message_if_exists
 
 router = Router()
 
@@ -17,7 +17,7 @@ class VideoCreationState(StatesGroup):
     """Состояние для процесса создания видео."""
     waiting_for_prompt = State()
 
-@router.message(F.text == "Создать видео")
+@router.message(F.text == "🎬 Создать видео") # <-- Изменили
 async def start_video_creation(message: Message, state: FSMContext, bot: Bot):
     """Начинает процесс создания видео."""
     balance = await get_user_balance(message.from_user.id)
@@ -31,7 +31,6 @@ async def start_video_creation(message: Message, state: FSMContext, bot: Bot):
         "Напиши промт для видео. Опиши, что ты хочешь увидеть:",
         reply_markup=await create_cancel_keyboard()
     )
-    # Сохраняем ID сообщения бота
     await state.update_data(bot_message_id=sent_message.message_id)
 
 @router.message(VideoCreationState.waiting_for_prompt)
@@ -40,7 +39,6 @@ async def process_video_prompt(message: Message, state: FSMContext, bot: Bot):
     state_data = await state.get_data()
     bot_message_id = state_data.get('bot_message_id')
     
-    # Удаляем предыдущие сообщения бота и пользователя
     await delete_message_if_exists(bot, message.chat.id, bot_message_id)
     await delete_message_if_exists(bot, message.chat.id, message.message_id)
     
