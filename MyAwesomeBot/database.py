@@ -2,6 +2,7 @@
 
 import sqlite3
 from datetime import datetime
+import uuid
 
 # Путь к файлу базы данных
 DB_NAME = "database.db"
@@ -19,7 +20,8 @@ async def init_db():
             user_id INTEGER PRIMARY KEY,
             username TEXT,
             balance INTEGER DEFAULT 0,
-            free_generations_used INTEGER DEFAULT 0
+            free_generations_used INTEGER DEFAULT 0,
+            referral_code TEXT UNIQUE
         )
     """)
 
@@ -69,7 +71,8 @@ async def add_or_update_user(user_id: int, username: str):
     cursor.execute("SELECT user_id FROM users WHERE user_id = ?", (user_id,))
     user_exists = cursor.fetchone()
     if not user_exists:
-        cursor.execute("INSERT INTO users (user_id, username) VALUES (?, ?, ?)", (user_id, username, 0))
+        referral_code = str(uuid.uuid4())[:8] # Генерируем уникальный код
+        cursor.execute("INSERT INTO users (user_id, username, free_generations_used, referral_code) VALUES (?, ?, ?, ?)", (user_id, username, 0, referral_code))
     conn.commit()
     conn.close()
 
@@ -167,6 +170,20 @@ async def get_daily_payments() -> int:
     conn.close()
     return total_payments if total_payments else 0
 
+async def add_subscription(email: str) -> bool:
+    """Добавляет новую подписку."""
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+    try:
+        cursor.execute("INSERT INTO subscriptions (email, daily_limit, daily_usage) VALUES (?, ?, ?)", 
+                       (email, MAX_DAILY_USES, 0))
+        conn.commit()
+        return True
+    except sqlite3.IntegrityError:
+        return False
+    finally:
+        conn.close()
+
 async def get_all_subscriptions() -> list:
     """Возвращает список всех подписок."""
     conn = sqlite3.connect(DB_NAME)
@@ -184,8 +201,7 @@ async def reset_all_subscriptions() -> bool:
     conn.commit()
     conn.close()
     return True
-    
-# Новая функция для бесплатной генерации
+
 async def get_free_generations_used(user_id: int) -> int:
     """Возвращает количество использованных бесплатных генераций."""
     conn = sqlite3.connect(DB_NAME)
@@ -205,3 +221,12 @@ async def use_free_generation(user_id: int):
     )
     conn.commit()
     conn.close()
+
+async def get_referral_code(user_id: int) -> str | None:
+    """Возвращает реферальный код пользователя."""
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+    cursor.execute("SELECT referral_code FROM users WHERE user_id = ?", (user_id,))
+    result = cursor.fetchone()
+    conn.close()
+    return result[0] if result else None
