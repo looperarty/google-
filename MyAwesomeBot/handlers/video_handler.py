@@ -5,7 +5,7 @@ from aiogram.types import Message
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 
-from database import get_user_balance, deduct_balance
+from database import get_user_balance, deduct_balance_and_use_subscription
 from handlers.menu_handler import create_main_menu_keyboard
 from handlers.common_handlers import create_cancel_keyboard, delete_message_if_exists
 
@@ -17,7 +17,7 @@ class VideoCreationState(StatesGroup):
     """Состояние для процесса создания видео."""
     waiting_for_prompt = State()
 
-@router.message(F.text == "🎬 Создать видео") # <-- Изменили
+@router.message(F.text == "🎬 Создать видео")
 async def start_video_creation(message: Message, state: FSMContext, bot: Bot):
     """Начинает процесс создания видео."""
     balance = await get_user_balance(message.from_user.id)
@@ -45,12 +45,13 @@ async def process_video_prompt(message: Message, state: FSMContext, bot: Bot):
     try:
         user_prompt = message.text
         
-        success = await deduct_balance(message.from_user.id, VIDEO_COST)
+        # Используем новую функцию, которая проверяет и списывает подписку
+        success, email = await deduct_balance_and_use_subscription(message.from_user.id, VIDEO_COST)
         
         if success:
-            await message.answer(f"Отлично! Начинаю создавать видео по твоему промту: `{user_prompt}`. Это займет некоторое время.")
+            await message.answer(f"Отлично! Начинаю создавать видео с использованием почты `{email}` по твоему промту: `{user_prompt}`. Это займет некоторое время.")
         else:
-            await message.answer("Не удалось списать кредиты. Пожалуйста, попробуй снова или пополни баланс.")
+            await message.answer("Не удалось списать кредиты. Возможно, все подписки сейчас заняты. Попробуй снова через некоторое время.")
     finally:
         keyboard = await create_main_menu_keyboard()
         await message.answer(

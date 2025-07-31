@@ -6,12 +6,14 @@ from datetime import datetime
 # Путь к файлу базы данных
 DB_NAME = "database.db"
 
+# Максимальное количество использований одной подписки в день
+MAX_DAILY_USES = 25
+
 async def init_db():
     """Инициализирует базу данных и создаёт таблицы."""
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
 
-    # Создаём таблицу 'users', если её ещё нет
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS users (
             user_id INTEGER PRIMARY KEY,
@@ -20,7 +22,6 @@ async def init_db():
         )
     """)
 
-    # Создаём таблицу для учёта созданных видео
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS video_creations (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -29,13 +30,22 @@ async def init_db():
         )
     """)
 
-    # Создаём таблицу для учёта пополнений
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS payments (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             user_id INTEGER,
             amount INTEGER,
             timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS subscriptions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            email TEXT UNIQUE,
+            daily_limit INTEGER DEFAULT 25,
+            daily_usage INTEGER DEFAULT 0,
+            last_used DATETIME
         )
     """)
 
@@ -75,7 +85,7 @@ async def add_balance(user_id: int, amount: int):
     conn.close()
     
 async def deduct_balance(user_id: int, amount: int) -> bool:
-    """Списывает кредиты и записывает создание видео."""
+    """Списывает кредиты."""
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
     cursor.execute("SELECT balance FROM users WHERE user_id = ?", (user_id,))
@@ -85,12 +95,52 @@ async def deduct_balance(user_id: int, amount: int) -> bool:
             "UPDATE users SET balance = balance - ? WHERE user_id = ?",
             (amount, user_id)
         )
-        cursor.execute("INSERT INTO video_creations (user_id) VALUES (?)", (user_id,))
         conn.commit()
         conn.close()
         return True
     conn.close()
     return False
+
+# Новая функция для учёта создания видео и использования подписки
+async def deduct_balance_and_use_subscription(user_id: int, amount: int) -> tuple[bool, str | None]:
+    """Списывает кредиты, находит подписку и записывает использование."""
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+
+    # Сначала проверяем баланс пользователя
+    if not await deduct_balance(user_id, amount):
+        conn.close()
+        return False, None
+    
+    # Сбрасываем счётчики, если прошёл день
+    today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+    cursor.execute("UPDATE subscriptions SET daily_usage = 0 WHERE last_used < ?", (today_start,))
+
+    # Находим свободную подписку
+    cursor.execute(
+        "SELECT email FROM subscriptions WHERE daily_usage < daily_limit ORDER BY daily_usage ASC LIMIT 1"
+    )
+    subscription_email = cursor.fetchone()
+
+    if subscription_email:
+        subscription_email = subscription_email[0]
+        cursor.execute(
+            "UPDATE subscriptions SET daily_usage = daily_usage + 1, last_used = ? WHERE email = ?",
+            (datetime.now(), subscription_email)
+        )
+        cursor.execute("INSERT INTO video_creations (user_id) VALUES (?)", (user_id,))
+        conn.commit()
+        conn.close()
+        return True, subscription_email
+    else:
+        # Если свободных подписок нет, возвращаем кредиты
+        cursor.execute(
+            "UPDATE users SET balance = balance + ? WHERE user_id = ?",
+            (amount, user_id)
+        )
+        conn.commit()
+        conn.close()
+        return False, None
 
 async def get_total_users() -> int:
     """Возвращает общее количество пользователей."""
