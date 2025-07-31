@@ -9,7 +9,8 @@ from config import BOT_TOKEN
 from handlers.start_handler import router as start_router
 from handlers.menu_handler import router as menu_router
 from handlers.top_up_handler import router as top_up_router
-from handlers.video_handler import router as video_router # <-- Добавили этот импорт
+from handlers.video_handler import router as video_router
+from handlers.common_handlers import router as common_router # <-- Добавили этот импорт
 from database import init_db
 
 # Включаем логирование, чтобы видеть ошибки и отладочные сообщения
@@ -27,10 +28,12 @@ async def main():
     await init_db()
     
     # Регистрируем роутеры с хендлерами
+    # Важно, чтобы common_router был зарегистрирован первым для перехвата команды "Отмена"
+    dp.include_router(common_router)
     dp.include_router(start_router)
     dp.include_router(menu_router)
     dp.include_router(top_up_router)
-    dp.include_router(video_router) # <-- Регистрируем новый роутер
+    dp.include_router(video_router)
     
     # Удаляем все команды и настройки, которые могли остаться от предыдущих запусков
     await bot.delete_webhook(drop_pending_updates=True)
