@@ -8,7 +8,6 @@ async def init_db():
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
 
-    # Создаём таблицу 'users', если её ещё нет
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS users (
             user_id INTEGER PRIMARY KEY,
@@ -30,7 +29,6 @@ async def get_user_balance(user_id: int) -> int:
 
     conn.close()
     
-    # Если пользователь не найден, возвращаем 0
     return result[0] if result else 0
 
 async def add_or_update_user(user_id: int, username: str):
@@ -59,3 +57,23 @@ async def add_balance(user_id: int, amount: int):
 
     conn.commit()
     conn.close()
+    
+async def deduct_balance(user_id: int, amount: int) -> bool:
+    """Списывает кредиты с баланса пользователя, если их достаточно."""
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+
+    cursor.execute("SELECT balance FROM users WHERE user_id = ?", (user_id,))
+    current_balance = cursor.fetchone()[0]
+    
+    if current_balance >= amount:
+        cursor.execute(
+            "UPDATE users SET balance = balance - ? WHERE user_id = ?",
+            (amount, user_id)
+        )
+        conn.commit()
+        conn.close()
+        return True
+    
+    conn.close()
+    return False
