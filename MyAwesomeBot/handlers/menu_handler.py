@@ -3,7 +3,7 @@
 from aiogram import Router, F
 from aiogram.types import Message, ReplyKeyboardMarkup, KeyboardButton
 from database import get_user_balance
-from config import PROMPTS_CHANNEL_LINK, SUPPORT_LINK # <-- Добавили импорт SUPPORT_LINK
+from config import PROMPTS_CHANNEL_LINK, SUPPORT_LINK
 
 router = Router()
 
@@ -50,4 +50,4 @@ async def handle_prompts_channel(message: Message):
 @router.message(F.text == "Служба поддержки")
 async def handle_support(message: Message):
     """Обрабатывает нажатие на кнопку 'Служба поддержки'."""
-    await message.answer(f"Если у тебя есть вопросы, напиши в нашу службу поддержки: <a href='{SUPPORT_LINK}'>Служба поддержки</a>.")git add .
+    await message.answer(f"Если у тебя есть вопросы, напиши в нашу службу поддержки: <a href='{SUPPORT_LINK}'>Служба поддержки</a>.")
