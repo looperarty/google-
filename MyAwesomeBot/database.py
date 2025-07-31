@@ -1,16 +1,10 @@
-# database.py
-
 import sqlite3
 from datetime import datetime
 
-# Путь к файлу базы данных
 DB_NAME = "database.db"
-
-# Максимальное количество использований одной подписки в день
 MAX_DAILY_USES = 50
 
 async def init_db():
-    """Инициализирует базу данных и создаёт таблицы."""
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
 
@@ -53,7 +47,6 @@ async def init_db():
     conn.close()
 
 async def get_user_balance(user_id: int) -> int:
-    """Возвращает баланс пользователя."""
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
     cursor.execute("SELECT balance FROM users WHERE user_id = ?", (user_id,))
@@ -62,7 +55,6 @@ async def get_user_balance(user_id: int) -> int:
     return result[0] if result else 0
 
 async def add_or_update_user(user_id: int, username: str):
-    """Добавляет нового пользователя или обновляет существующего."""
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
     cursor.execute("SELECT user_id FROM users WHERE user_id = ?", (user_id,))
@@ -73,7 +65,6 @@ async def add_or_update_user(user_id: int, username: str):
     conn.close()
 
 async def add_balance(user_id: int, amount: int):
-    """Увеличивает баланс пользователя и записывает платёж."""
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
     cursor.execute(
@@ -85,7 +76,6 @@ async def add_balance(user_id: int, amount: int):
     conn.close()
     
 async def deduct_balance(user_id: int, amount: int) -> bool:
-    """Списывает кредиты."""
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
     cursor.execute("SELECT balance FROM users WHERE user_id = ?", (user_id,))
@@ -102,7 +92,6 @@ async def deduct_balance(user_id: int, amount: int) -> bool:
     return False
 
 async def deduct_balance_and_use_subscription(user_id: int, amount: int) -> tuple[bool, str | None]:
-    """Списывает кредиты, находит подписку и записывает использование."""
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
 
@@ -138,7 +127,6 @@ async def deduct_balance_and_use_subscription(user_id: int, amount: int) -> tupl
         return False, None
 
 async def get_total_users() -> int:
-    """Возвращает общее количество пользователей."""
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
     cursor.execute("SELECT COUNT(*) FROM users")
@@ -147,7 +135,6 @@ async def get_total_users() -> int:
     return count
 
 async def get_daily_video_creations() -> int:
-    """Возвращает количество созданных видео за текущий день."""
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
     today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
@@ -157,7 +144,6 @@ async def get_daily_video_creations() -> int:
     return count
 
 async def get_daily_payments() -> int:
-    """Возвращает общую сумму пополнений за текущий день."""
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
     today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
@@ -166,10 +152,7 @@ async def get_daily_payments() -> int:
     conn.close()
     return total_payments if total_payments else 0
 
-# Новые функции для управления подписками
-
 async def add_subscription(email: str) -> bool:
-    """Добавляет новую подписку."""
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
     try:
@@ -178,13 +161,11 @@ async def add_subscription(email: str) -> bool:
         conn.commit()
         return True
     except sqlite3.IntegrityError:
-        # Такая почта уже существует
         return False
     finally:
         conn.close()
 
 async def get_all_subscriptions() -> list:
-    """Возвращает список всех подписок."""
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
     cursor.execute("SELECT email, daily_usage, daily_limit FROM subscriptions")
@@ -193,7 +174,6 @@ async def get_all_subscriptions() -> list:
     return subscriptions
 
 async def reset_all_subscriptions() -> bool:
-    """Сбрасывает счётчик использования всех подписок."""
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
     cursor.execute("UPDATE subscriptions SET daily_usage = 0")

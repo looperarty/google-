@@ -22,23 +22,18 @@ async def create_main_menu_keyboard() -> ReplyKeyboardMarkup:
     )
     return keyboard
 
-@router.message(F.text == "🎬 Создать видео") # <-- Изменили
-async def handle_create_video(message: Message):
-    pass
+# Мы УДАЛИЛИ обработчики для 'Создать видео' и 'Пополнить баланс',
+# чтобы бот мог найти их в других файлах
 
-@router.message(F.text == "💰 Мой баланс") # <-- Изменили
+@router.message(F.text == "💰 Мой баланс")
 async def handle_my_balance(message: Message):
     user_balance = await get_user_balance(message.from_user.id)
     await message.answer(f"Твой текущий баланс: **{user_balance}** кредитов.")
 
-@router.message(F.text == "💳 Пополнить баланс") # <-- Изменили
-async def handle_top_up_balance(message: Message):
-    pass
-
-@router.message(F.text == "📚 Канал с промтами") # <-- Изменили
+@router.message(F.text == "📚 Канал с промтами")
 async def handle_prompts_channel(message: Message):
     await message.answer(f"Подписывайся на наш канал, чтобы не пропустить новые промты: <a href='{PROMPTS_CHANNEL_LINK}'>Канал с промтами</a>")
 
-@router.message(F.text == "📞 Служба поддержки") # <-- Изменили
+@router.message(F.text == "📞 Служба поддержки")
 async def handle_support(message: Message):
     await message.answer(f"Если у тебя есть вопросы, напиши в нашу службу поддержки: <a href='{SUPPORT_LINK}'>Служба поддержки</a>.")

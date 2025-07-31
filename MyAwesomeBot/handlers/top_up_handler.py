@@ -14,7 +14,7 @@ class TopUpState(StatesGroup):
     """Состояние для пополнения баланса."""
     waiting_for_amount = State()
 
-@router.message(F.text == "💳 Пополнить баланс") # <-- Изменили
+@router.message(F.text == "💳 Пополнить баланс")
 async def start_top_up(message: Message, state: FSMContext, bot: Bot):
     """Начинает процесс пополнения баланса."""
     sent_message = await message.answer(
@@ -22,6 +22,7 @@ async def start_top_up(message: Message, state: FSMContext, bot: Bot):
         reply_markup=await create_cancel_keyboard()
     )
     await state.update_data(bot_message_id=sent_message.message_id)
+    await state.set_state(TopUpState.waiting_for_amount)
 
 @router.message(TopUpState.waiting_for_amount)
 async def process_top_up_amount(message: Message, state: FSMContext, bot: Bot):
