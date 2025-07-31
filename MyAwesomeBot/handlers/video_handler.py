@@ -7,6 +7,7 @@ from aiogram.fsm.state import State, StatesGroup
 
 from database import get_user_balance, deduct_balance
 from handlers.menu_handler import create_main_menu_keyboard
+from handlers.common_handlers import create_cancel_keyboard # <-- Добавили этот импорт
 
 router = Router()
 
@@ -28,30 +29,28 @@ async def start_video_creation(message: Message, state: FSMContext):
     await state.set_state(VideoCreationState.waiting_for_prompt)
     await message.answer(
         "Напиши промт для видео. Опиши, что ты хочешь увидеть:",
-        reply_markup=ReplyKeyboardRemove()
+        reply_markup=await create_cancel_keyboard() # <-- Изменили эту строку
     )
 
 @router.message(VideoCreationState.waiting_for_prompt)
 async def process_video_prompt(message: Message, state: FSMContext):
     """Обрабатывает промт и 'создаёт' видео."""
-    user_prompt = message.text
-    
-    # Списываем кредиты
-    success = await deduct_balance(message.from_user.id, VIDEO_COST)
-    
-    if success:
-        # Здесь должна быть логика вызова API для создания видео (например, Google Veo)
-        # Пока что это просто заглушка
-        await message.answer(f"Отлично! Начинаю создавать видео по твоему промту: `{user_prompt}`. Это займет некоторое время.")
+    try:
+        user_prompt = message.text
         
-        # После завершения процесса возвращаем основную клавиатуру
+        # Списываем кредиты
+        success = await deduct_balance(message.from_user.id, VIDEO_COST)
+        
+        if success:
+            # Здесь должна быть логика вызова API для создания видео
+            await message.answer(f"Отлично! Начинаю создавать видео по твоему промту: `{user_prompt}`. Это займет некоторое время.")
+        else:
+            await message.answer("Не удалось списать кредиты. Пожалуйста, попробуй снова или пополни баланс.")
+    finally:
+        # После завершения процесса возвращаем основную клавиатуру и очищаем состояние
         keyboard = await create_main_menu_keyboard()
         await message.answer(
             "Твоё видео готово! (Заглушка).",
             reply_markup=keyboard
         )
-    else:
-        # Если списание не удалось (например, пользователь пополнил баланс, но использовал его в другом месте)
-        await message.answer("Не удалось списать кредиты. Пожалуйста, попробуй снова или пополни баланс.")
-    
-    await state.clear()
+        await state.clear()
