@@ -1,33 +1,53 @@
 # handlers/menu_handler.py
 
 from aiogram import Router, F
-from aiogram.types import Message
-from database import get_user_balance # <-- Добавили этот импорт
+from aiogram.types import Message, ReplyKeyboardMarkup, KeyboardButton
+from database import get_user_balance
+from config import PROMPTS_CHANNEL_LINK # <-- Добавили этот импорт
 
 router = Router()
+
+async def create_main_menu_keyboard() -> ReplyKeyboardMarkup:
+    """Создает клавиатуру с основными кнопками."""
+    keyboard = ReplyKeyboardMarkup(
+        keyboard=[
+            [KeyboardButton(text="Создать видео")],
+            [
+                KeyboardButton(text="Мой баланс"),
+                KeyboardButton(text="Пополнить баланс")
+            ],
+            [
+                KeyboardButton(text="Канал с промтами"),
+                KeyboardButton(text="Служба поддержки")
+            ]
+        ],
+        resize_keyboard=True,
+        input_field_placeholder="Выберите действие..."
+    )
+    return keyboard
 
 @router.message(F.text == "Создать видео")
 async def handle_create_video(message: Message):
     """Обрабатывает нажатие на кнопку 'Создать видео'."""
-    await message.answer("Окей, присылай промт для видео, и я начну работу.")
+    # Этот хендлер теперь перенаправляет в video_handler
+    pass
 
 @router.message(F.text == "Мой баланс")
 async def handle_my_balance(message: Message):
     """Обрабатывает нажатие на кнопку 'Мой баланс'."""
-    user_balance = await get_user_balance(message.from_user.id) # <-- Изменили эту строку
-    await message.answer(f"Твой текущий баланс: **{user_balance}** кредитов.") # <-- Изменили эту строку
+    user_balance = await get_user_balance(message.from_user.id)
+    await message.answer(f"Твой текущий баланс: **{user_balance}** кредитов.")
 
 @router.message(F.text == "Пополнить баланс")
 async def handle_top_up_balance(message: Message):
     """Обрабатывает нажатие на кнопку 'Пополнить баланс'."""
-    # TODO: Здесь будет ссылка на платёжную систему или инструкция
-    await message.answer("Для пополнения баланса перейди по этой ссылке: [Ссылка для оплаты].")
+    # Этот хендлер теперь перенаправляет в top_up_handler
+    pass
 
 @router.message(F.text == "Канал с промтами")
 async def handle_prompts_channel(message: Message):
     """Обрабатывает нажатие на кнопку 'Канал с промтами'."""
-    # TODO: Здесь будет ссылка на твой канал с промтами
-    await message.answer("Подписывайся на наш канал, чтобы не пропустить новые промты: [Ссылка на канал].")
+    await message.answer(f"Подписывайся на наш канал, чтобы не пропустить новые промты: <a href='{PROMPTS_CHANNEL_LINK}'>Канал с промтами</a>")
 
 @router.message(F.text == "Служба поддержки")
 async def handle_support(message: Message):
