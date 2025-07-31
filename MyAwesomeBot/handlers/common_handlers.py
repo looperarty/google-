@@ -7,11 +7,11 @@ from handlers.menu_handler import create_main_menu_keyboard
 
 router = Router()
 
-async def create_cancel_keyboard() -> ReplyKeyboardMarkup:
-    """Создает клавиатуру с кнопкой 'Отмена'."""
+async def create_back_keyboard() -> ReplyKeyboardMarkup:
+    """Создает клавиатуру с кнопкой 'Назад'."""
     keyboard = ReplyKeyboardMarkup(
         keyboard=[
-            [KeyboardButton(text="Отмена")]
+            [KeyboardButton(text="⬅️ Назад")]
         ],
         resize_keyboard=True,
         one_time_keyboard=True
@@ -24,12 +24,11 @@ async def delete_message_if_exists(bot: Bot, chat_id: int, message_id: int | Non
         try:
             await bot.delete_message(chat_id=chat_id, message_id=message_id)
         except Exception:
-            # Игнорируем ошибки, если сообщение уже удалено
             pass
 
-@router.message(F.text == "Отмена")
-async def cancel_handler(message: Message, state: FSMContext, bot: Bot) -> None:
-    """Обрабатывает нажатие на кнопку 'Отмена'."""
+@router.message(F.text == "⬅️ Назад")
+async def back_handler(message: Message, state: FSMContext, bot: Bot) -> None:
+    """Обрабатывает нажатие на кнопку 'Назад'."""
     current_state = await state.get_state()
     if current_state is None:
         return
@@ -40,6 +39,6 @@ async def cancel_handler(message: Message, state: FSMContext, bot: Bot) -> None:
     await state.clear()
     keyboard = await create_main_menu_keyboard()
     await message.answer(
-        "Действие отменено. Вы вернулись в главное меню.",
+        "Вы вернулись в главное меню.",
         reply_markup=keyboard
     )

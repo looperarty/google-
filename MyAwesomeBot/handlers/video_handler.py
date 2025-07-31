@@ -7,14 +7,14 @@ from aiogram.fsm.state import State, StatesGroup
 
 from database import get_user_balance, deduct_balance_and_use_subscription
 from handlers.menu_handler import create_main_menu_keyboard
-from handlers.common_handlers import create_cancel_keyboard, delete_message_if_exists
+from handlers.common_handlers import create_back_keyboard, delete_message_if_exists # <-- Изменили импорт
 
 router = Router()
 
-VIDEO_COST = 10 # Стоимость одного видео в кредитах
+VIDEO_COST = 10
 
 class VideoCreationState(StatesGroup):
-    """Состояние для процесса создания видео."""
+    """Состояние для создания видео."""
     waiting_for_prompt = State()
 
 @router.message(F.text == "🎬 Создать видео")
@@ -29,13 +29,13 @@ async def start_video_creation(message: Message, state: FSMContext, bot: Bot):
     await state.set_state(VideoCreationState.waiting_for_prompt)
     sent_message = await message.answer(
         "Напиши промт для видео. Опиши, что ты хочешь увидеть:",
-        reply_markup=await create_cancel_keyboard()
+        reply_markup=await create_back_keyboard() # <-- Изменили вызов функции
     )
     await state.update_data(bot_message_id=sent_message.message_id)
 
 @router.message(VideoCreationState.waiting_for_prompt)
 async def process_video_prompt(message: Message, state: FSMContext, bot: Bot):
-    """Обрабатывает промт и 'создаёт' видео."""
+    """Обрабатывает введенный промт."""
     state_data = await state.get_data()
     bot_message_id = state_data.get('bot_message_id')
     
@@ -45,7 +45,6 @@ async def process_video_prompt(message: Message, state: FSMContext, bot: Bot):
     try:
         user_prompt = message.text
         
-        # Используем новую функцию, которая проверяет и списывает подписку
         success, email = await deduct_balance_and_use_subscription(message.from_user.id, VIDEO_COST)
         
         if success:

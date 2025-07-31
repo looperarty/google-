@@ -6,7 +6,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 
 from database import add_balance
-from handlers.common_handlers import create_cancel_keyboard, delete_message_if_exists
+from handlers.common_handlers import create_back_keyboard, delete_message_if_exists # <-- Изменили импорт
 
 router = Router()
 
@@ -19,7 +19,7 @@ async def start_top_up(message: Message, state: FSMContext, bot: Bot):
     """Начинает процесс пополнения баланса."""
     sent_message = await message.answer(
         "Введите сумму, на которую хотите пополнить баланс.",
-        reply_markup=await create_cancel_keyboard()
+        reply_markup=await create_back_keyboard() # <-- Изменили вызов функции
     )
     await state.update_data(bot_message_id=sent_message.message_id)
     await state.set_state(TopUpState.waiting_for_amount)
