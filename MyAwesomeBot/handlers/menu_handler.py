@@ -3,7 +3,7 @@
 from aiogram import Router, F
 from aiogram.types import Message, ReplyKeyboardMarkup, KeyboardButton
 from database import get_user_balance
-from config import PROMPTS_CHANNEL_LINK # <-- Добавили этот импорт
+from config import PROMPTS_CHANNEL_LINK, SUPPORT_LINK # <-- Добавили импорт SUPPORT_LINK
 
 router = Router()
 
@@ -29,7 +29,6 @@ async def create_main_menu_keyboard() -> ReplyKeyboardMarkup:
 @router.message(F.text == "Создать видео")
 async def handle_create_video(message: Message):
     """Обрабатывает нажатие на кнопку 'Создать видео'."""
-    # Этот хендлер теперь перенаправляет в video_handler
     pass
 
 @router.message(F.text == "Мой баланс")
@@ -41,7 +40,6 @@ async def handle_my_balance(message: Message):
 @router.message(F.text == "Пополнить баланс")
 async def handle_top_up_balance(message: Message):
     """Обрабатывает нажатие на кнопку 'Пополнить баланс'."""
-    # Этот хендлер теперь перенаправляет в top_up_handler
     pass
 
 @router.message(F.text == "Канал с промтами")
@@ -52,5 +50,4 @@ async def handle_prompts_channel(message: Message):
 @router.message(F.text == "Служба поддержки")
 async def handle_support(message: Message):
     """Обрабатывает нажатие на кнопку 'Служба поддержки'."""
-    # TODO: Здесь будет ссылка на аккаунт поддержки или чат
-    await message.answer("Если у тебя есть вопросы, напиши в нашу службу поддержки: [Ссылка на саппорт].")
+    await message.answer(f"Если у тебя есть вопросы, напиши в нашу службу поддержки: <a href='{SUPPORT_LINK}'>Служба поддержки</a>.")git add .
