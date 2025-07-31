@@ -1,5 +1,3 @@
-# database.py
-
 import sqlite3
 
 # Путь к файлу базы данных
@@ -45,6 +43,19 @@ async def add_or_update_user(user_id: int, username: str):
 
     if not user_exists:
         cursor.execute("INSERT INTO users (user_id, username) VALUES (?, ?)", (user_id, username))
+
+    conn.commit()
+    conn.close()
+
+async def add_balance(user_id: int, amount: int):
+    """Увеличивает баланс пользователя."""
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+
+    cursor.execute(
+        "UPDATE users SET balance = balance + ? WHERE user_id = ?",
+        (amount, user_id)
+    )
 
     conn.commit()
     conn.close()
