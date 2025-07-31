@@ -7,7 +7,7 @@ from datetime import datetime
 DB_NAME = "database.db"
 
 # Максимальное количество использований одной подписки в день
-MAX_DAILY_USES = 25
+MAX_DAILY_USES = 50
 
 async def init_db():
     """Инициализирует базу данных и создаёт таблицы."""
@@ -43,7 +43,7 @@ async def init_db():
         CREATE TABLE IF NOT EXISTS subscriptions (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             email TEXT UNIQUE,
-            daily_limit INTEGER DEFAULT 25,
+            daily_limit INTEGER DEFAULT 50,
             daily_usage INTEGER DEFAULT 0,
             last_used DATETIME
         )
@@ -101,22 +101,18 @@ async def deduct_balance(user_id: int, amount: int) -> bool:
     conn.close()
     return False
 
-# Новая функция для учёта создания видео и использования подписки
 async def deduct_balance_and_use_subscription(user_id: int, amount: int) -> tuple[bool, str | None]:
     """Списывает кредиты, находит подписку и записывает использование."""
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
 
-    # Сначала проверяем баланс пользователя
     if not await deduct_balance(user_id, amount):
         conn.close()
         return False, None
     
-    # Сбрасываем счётчики, если прошёл день
     today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
     cursor.execute("UPDATE subscriptions SET daily_usage = 0 WHERE last_used < ?", (today_start,))
 
-    # Находим свободную подписку
     cursor.execute(
         "SELECT email FROM subscriptions WHERE daily_usage < daily_limit ORDER BY daily_usage ASC LIMIT 1"
     )
@@ -133,7 +129,6 @@ async def deduct_balance_and_use_subscription(user_id: int, amount: int) -> tupl
         conn.close()
         return True, subscription_email
     else:
-        # Если свободных подписок нет, возвращаем кредиты
         cursor.execute(
             "UPDATE users SET balance = balance + ? WHERE user_id = ?",
             (amount, user_id)
@@ -170,3 +165,38 @@ async def get_daily_payments() -> int:
     total_payments = cursor.fetchone()[0]
     conn.close()
     return total_payments if total_payments else 0
+
+# Новые функции для управления подписками
+
+async def add_subscription(email: str) -> bool:
+    """Добавляет новую подписку."""
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+    try:
+        cursor.execute("INSERT INTO subscriptions (email, daily_limit, daily_usage) VALUES (?, ?, ?)", 
+                       (email, MAX_DAILY_USES, 0))
+        conn.commit()
+        return True
+    except sqlite3.IntegrityError:
+        # Такая почта уже существует
+        return False
+    finally:
+        conn.close()
+
+async def get_all_subscriptions() -> list:
+    """Возвращает список всех подписок."""
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+    cursor.execute("SELECT email, daily_usage, daily_limit FROM subscriptions")
+    subscriptions = cursor.fetchall()
+    conn.close()
+    return subscriptions
+
+async def reset_all_subscriptions() -> bool:
+    """Сбрасывает счётчик использования всех подписок."""
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+    cursor.execute("UPDATE subscriptions SET daily_usage = 0")
+    conn.commit()
+    conn.close()
+    return True
