@@ -68,7 +68,6 @@ async def process_mia_payment(message: Message, state: FSMContext, bot: Bot):
 @router.message(TopUpState.waiting_for_amount)
 async def process_top_up_amount(message: Message, state: FSMContext, bot: Bot):
     """Обрабатывает скриншот или другое подтверждение оплаты."""
-    # Удаляем предыдущие сообщения
     await delete_message_if_exists(bot, message.chat.id, (await state.get_data()).get('bot_message_id'))
     await delete_message_if_exists(bot, message.chat.id, message.message_id)
     
@@ -85,7 +84,8 @@ async def process_top_up_amount(message: Message, state: FSMContext, bot: Bot):
         message_id=message.message_id
     )
     
-    await message.answer("Спасибо! Мы проверим вашу оплату и начислим кредиты.")
+    await message.answer("Спасибо! Мы проверим вашу оплату в течение 2-3 минут и начислим кредиты.")
+    
     await state.clear()
     keyboard = await create_main_menu_keyboard()
     await message.answer("Вы вернулись в главное меню.", reply_markup=keyboard)
