@@ -62,9 +62,9 @@ async def add_subscription_handler(message: Message) -> None:
     success = await add_subscription(email)
     
     if success:
-        await message.answer(f"Почта `{email}` успешно добавлена в пул подписок.")
+        await message.answer(f"Почта <code>{email}</code> успешно добавлена в пул подписок.")
     else:
-        await message.answer(f"Ошибка: Почта `{email}` уже существует в базе данных.")
+        await message.answer(f"Ошибка: Почта <code>{email}</code> уже существует в базе данных.")
 
 @router.message(Command("listsubs"))
 async def list_subscriptions_handler(message: Message) -> None:
@@ -79,7 +79,6 @@ async def list_subscriptions_handler(message: Message) -> None:
         
     stats_message = "📧 **Пул подписок:**\n\n"
     for email, usage, limit in subscriptions:
-        # Исправлено: используем тег <code> для почты
         stats_message += f"<code>{email}</code>: {usage} из {limit} использований\n"
         
     await message.answer(stats_message)
@@ -105,10 +104,10 @@ async def show_pending_requests_handler(message: Message) -> None:
 
     requests_message = "📝 **Ожидающие запросы:**\n\n"
     for request_id, user_id, prompt, type in requests:
-        requests_message += f"**ID запроса:** `{request_id}`\n"
-        requests_message += f"**ID пользователя:** `{user_id}`\n"
-        requests_message += f"**Тип:** `{type}`\n"
-        requests_message += f"**Промт:** `{prompt}`\n\n"
+        requests_message += f"**ID запроса:** <code>{request_id}</code>\n"
+        requests_message += f"**ID пользователя:** <code>{user_id}</code>\n"
+        requests_message += f"**Тип:** <code>{type}</code>\n"
+        requests_message += f"**Промт:** <code>{prompt}</code>\n\n"
     
     await message.answer(requests_message)
 
@@ -133,10 +132,10 @@ async def send_video_handler(message: Message) -> None:
                     from_chat_id=message.chat.id,
                     message_id=message.message_id
                 )
-                await message.answer(f"Видео успешно отправлено пользователю `{user_id}`.")
+                await message.answer(f"Видео успешно отправлено пользователю <code>{user_id}</code>.")
                 await delete_pending_request(request_id)
             else:
-                await message.answer(f"Запрос с ID `{request_id}` не найден.")
+                await message.answer(f"Запрос с ID <code>{request_id}</code> не найден.")
 
         except (ValueError, IndexError):
             await message.answer("Ошибка в команде. Используйте формат: `/send ID_запроса`")
@@ -154,6 +153,6 @@ async def add_credits_handler(message: Message) -> None:
         amount = int(parts[2])
         
         await add_balance(user_id, amount)
-        await message.answer(f"Начислено **{amount}** кредитов пользователю `{user_id}`.")
+        await message.answer(f"Начислено **{amount}** кредитов пользователю <code>{user_id}</code>.")
     except (ValueError, IndexError):
         await message.answer("Ошибка в команде. Используйте формат: `/addcredits ID_пользователя сумма`")
