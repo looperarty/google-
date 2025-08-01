@@ -13,7 +13,8 @@ from handlers.top_up_handler import router as top_up_router
 from handlers.video_handler import router as video_router
 from handlers.common_handlers import router as common_router
 from handlers.admin_handler import router as admin_router
-from handlers.free_generation_handler import router as free_generation_router # <-- Добавили этот импорт
+from handlers.free_generation_handler import router as free_generation_router
+from handlers.referral_handler import router as referral_router # <-- Добавили этот импорт
 from database import init_db
 
 # Включаем логирование, чтобы видеть ошибки и отладочные сообщения
@@ -37,7 +38,8 @@ async def main():
     dp.include_router(top_up_router)
     dp.include_router(video_router)
     dp.include_router(admin_router)
-    dp.include_router(free_generation_router) # <-- Регистрируем новый роутер
+    dp.include_router(free_generation_router)
+    dp.include_router(referral_router) # <-- Регистрируем новый роутер
     
     # Удаляем все команды и настройки, которые могли остаться от предыдущих запусков
     await bot.delete_webhook(drop_pending_updates=True)

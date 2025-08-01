@@ -5,7 +5,7 @@ from aiogram.types import Message
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 
-from handlers.common_handlers import create_back_keyboard, simulate_progress_bar
+from handlers.common_handlers import create_back_keyboard, simulate_progress_bar, delete_message_if_exists # <-- Исправлена эта строка
 from handlers.menu_handler import create_main_menu_keyboard
 from database import get_free_generations_used, use_free_generation
 from config import PROMPTS_CHANNEL_LINK, ADMIN_ID
@@ -47,7 +47,6 @@ async def process_free_prompt(message: Message, state: FSMContext, bot: Bot):
     user_prompt = message.text
     user_id = message.from_user.id
     
-    # Запускаем шкалу загрузки
     await simulate_progress_bar(message, bot)
 
     await use_free_generation(user_id)
