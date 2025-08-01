@@ -22,7 +22,7 @@ async def show_admin_panel_callback(callback: CallbackQuery) -> None:
         return
     
     await send_admin_panel_stats(callback.message)
-    await callback.answer() # Убираем "часики" с кнопки
+    await callback.answer()
 
 async def send_admin_panel_stats(message: Message):
     """Отправляет сообщение с админ-статистикой."""
@@ -79,7 +79,8 @@ async def list_subscriptions_handler(message: Message) -> None:
         
     stats_message = "📧 **Пул подписок:**\n\n"
     for email, usage, limit in subscriptions:
-        stats_message += f"`{email}`: {usage} из {limit} использований\n"
+        # Исправлено: используем тег <code> для почты
+        stats_message += f"<code>{email}</code>: {usage} из {limit} использований\n"
         
     await message.answer(stats_message)
 
