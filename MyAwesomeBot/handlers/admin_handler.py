@@ -11,7 +11,6 @@ router = Router()
 
 @router.message(Command("admin"))
 async def admin_panel_handler(message: Message) -> None:
-    """Обрабатывает команду /admin и показывает статистику."""
     if message.from_user.id != ADMIN_ID:
         return
     
@@ -27,14 +26,15 @@ async def admin_panel_handler(message: Message) -> None:
         "**Команды для управления подписками:**\n"
         "/addsub <email>\n"
         "/listsubs\n"
-        "/resetsubs"
+        "/resetsubs\n\n"
+        "**Команда для отправки видео пользователю:**\n"
+        "Отправь видео в бот с подписью: `/send ID_пользователя`"
     )
     
     await message.answer(stats_message)
 
 @router.message(Command("addsub"))
 async def add_subscription_handler(message: Message) -> None:
-    """Добавляет новую подписку."""
     if message.from_user.id != ADMIN_ID:
         return
     
@@ -53,7 +53,6 @@ async def add_subscription_handler(message: Message) -> None:
 
 @router.message(Command("listsubs"))
 async def list_subscriptions_handler(message: Message) -> None:
-    """Показывает список подписок и их статус."""
     if message.from_user.id != ADMIN_ID:
         return
     
@@ -71,9 +70,27 @@ async def list_subscriptions_handler(message: Message) -> None:
 
 @router.message(Command("resetsubs"))
 async def reset_subscriptions_handler(message: Message) -> None:
-    """Сбрасывает счётчики использования всех подписок."""
     if message.from_user.id != ADMIN_ID:
         return
     
     await reset_all_subscriptions()
     await message.answer("Счётчики использования всех подписок сброшены.")
+
+@router.message(F.from_user.id == ADMIN_ID, F.video)
+async def send_video_handler(message: Message) -> None:
+    """Отправляет видео пользователю по ID."""
+    command_text = message.caption
+    
+    if command_text and command_text.startswith('/send'):
+        try:
+            user_id = int(command_text.split()[1])
+            await message.bot.copy_message(
+                chat_id=user_id,
+                from_chat_id=message.chat.id,
+                message_id=message.message_id
+            )
+            await message.answer(f"Видео успешно отправлено пользователю `{user_id}`.")
+        except (ValueError, IndexError):
+            await message.answer("Ошибка в команде. Используйте формат: `/send ID_пользователя`")
+        except Exception as e:
+            await message.answer(f"Не удалось отправить видео пользователю `{user_id}`. Ошибка: {e}")

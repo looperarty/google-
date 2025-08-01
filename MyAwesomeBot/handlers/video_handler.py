@@ -7,7 +7,7 @@ from aiogram.fsm.state import State, StatesGroup
 
 from database import get_user_balance, deduct_balance_and_use_subscription
 from handlers.menu_handler import create_main_menu_keyboard
-from handlers.common_handlers import create_back_keyboard, delete_message_if_exists, simulate_progress_bar # <-- Обновили импорт
+from handlers.common_handlers import create_back_keyboard, delete_message_if_exists, simulate_progress_bar
 from config import ADMIN_ID
 
 router = Router()
@@ -24,12 +24,13 @@ async def start_video_creation(message: Message, state: FSMContext, bot: Bot):
     """Начинает процесс создания видео."""
     await delete_message_if_exists(bot, message.chat.id, message.message_id)
 
-    balance = await get_user_balance(message.from_user.id)
-    
-    if balance < VIDEO_COST:
-        sent_message = await message.answer(f"У тебя недостаточно кредитов для создания видео. Стоимость: **{VIDEO_COST}** кредитов, твой баланс: **{balance}**.")
-        await state.update_data(bot_message_id=sent_message.message_id)
-        return
+    # Проверяем, если это админ, пропускаем проверку баланса
+    if message.from_user.id != ADMIN_ID:
+        balance = await get_user_balance(message.from_user.id)
+        if balance < VIDEO_COST:
+            sent_message = await message.answer(f"У тебя недостаточно кредитов для создания видео. Стоимость: **{VIDEO_COST}** кредитов, твой баланс: **{balance}**.")
+            await state.update_data(bot_message_id=sent_message.message_id)
+            return
         
     await state.set_state(VideoCreationState.waiting_for_prompt)
     sent_message = await message.answer(
@@ -50,7 +51,6 @@ async def process_video_prompt(message: Message, state: FSMContext, bot: Bot):
     user_prompt = message.text
     user_id = message.from_user.id
 
-    # Запускаем шкалу загрузки
     await simulate_progress_bar(message, bot)
     
     # Отправляем промт админу
