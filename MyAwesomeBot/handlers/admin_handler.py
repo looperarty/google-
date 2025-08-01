@@ -5,7 +5,7 @@ from aiogram.types import Message
 from aiogram.filters import Command
 
 from config import ADMIN_ID
-from database import get_total_users, get_daily_video_creations, get_daily_payments, add_subscription, get_all_subscriptions, reset_all_subscriptions
+from database import get_total_users, get_daily_video_creations, get_daily_payments, add_subscription, get_all_subscriptions, reset_all_subscriptions, add_balance
 
 router = Router()
 
@@ -28,7 +28,9 @@ async def admin_panel_handler(message: Message) -> None:
         "/listsubs\n"
         "/resetsubs\n\n"
         "**Команда для отправки видео пользователю:**\n"
-        "Отправь видео в бот с подписью: `/send ID_пользователя`"
+        "Отправь видео в бот с подписью: `/send ID_пользователя`\n\n"
+        "**Команда для начисления кредитов:**\n"
+        "Отправь: `/addcredits ID_пользователя сумма`"
     )
     
     await message.answer(stats_message)
@@ -94,3 +96,19 @@ async def send_video_handler(message: Message) -> None:
             await message.answer("Ошибка в команде. Используйте формат: `/send ID_пользователя`")
         except Exception as e:
             await message.answer(f"Не удалось отправить видео пользователю `{user_id}`. Ошибка: {e}")
+
+@router.message(Command("addcredits"))
+async def add_credits_handler(message: Message) -> None:
+    """Начисляет кредиты пользователю."""
+    if message.from_user.id != ADMIN_ID:
+        return
+    
+    try:
+        parts = message.text.split()
+        user_id = int(parts[1])
+        amount = int(parts[2])
+        
+        await add_balance(user_id, amount)
+        await message.answer(f"Начислено **{amount}** кредитов пользователю `{user_id}`.")
+    except (ValueError, IndexError):
+        await message.answer("Ошибка в команде. Используйте формат: `/addcredits ID_пользователя сумма`")
