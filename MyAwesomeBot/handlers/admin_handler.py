@@ -1,12 +1,12 @@
 # handlers/admin_handler.py
 
 from aiogram import Router, F
-from aiogram.types import Message, CallbackQuery
+from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.filters import Command
 from html import escape
 
 from config import ADMIN_ID, MDL_PER_CREDIT
-from database import get_total_users, get_daily_video_creations, get_daily_payments, add_balance, get_pending_requests, delete_pending_request, get_user_sequential_id
+from database import get_total_users, get_total_video_creations, get_total_free_generations, get_daily_payments, add_balance, get_pending_requests, delete_pending_request, get_user_sequential_id, get_total_subscribers
 
 router = Router()
 
@@ -15,36 +15,57 @@ async def admin_panel_handler(message: Message) -> None:
     if message.from_user.id != ADMIN_ID:
         return
     
-    await send_admin_panel_stats(message)
+    await send_admin_panel_stats_selector(message)
 
 @router.callback_query(F.data == "show_admin_panel")
 async def show_admin_panel_callback(callback: CallbackQuery) -> None:
     if callback.from_user.id != ADMIN_ID:
         return
     
-    await send_admin_panel_stats(callback.message)
+    await send_admin_panel_stats_selector(callback.message)
     await callback.answer()
 
-async def send_admin_panel_stats(message: Message):
+async def send_admin_panel_stats_selector(message: Message):
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="📊 Сегодня", callback_data="stats_today")],
+        [InlineKeyboardButton(text="🗓️ Вчера", callback_data="stats_yesterday")],
+        [InlineKeyboardButton(text="📆 Неделя", callback_data="stats_week")],
+        [InlineKeyboardButton(text="📅 Месяц", callback_data="stats_month")],
+        [InlineKeyboardButton(text="All", callback_data="stats_all")]
+    ])
+    
+    await message.answer("📊 **Выберите период для статистики:**", reply_markup=keyboard)
+
+
+@router.callback_query(F.data.startswith("stats_"))
+async def show_stats_by_time_frame(callback: CallbackQuery):
+    time_frame = callback.data.split("_")[1]
+    
     total_users = await get_total_users()
-    daily_creations = await get_daily_video_creations()
-    daily_payments = await get_daily_payments()
+    total_generations = await get_total_video_creations(time_frame)
+    free_generations = await get_total_free_generations(time_frame)
+    total_payments = await get_daily_payments()
+    total_subscribers = await get_total_subscribers()
     
-    daily_earnings_mdl = daily_payments * MDL_PER_CREDIT
-    
+    daily_earnings_mdl = total_payments * MDL_PER_CREDIT
+
     stats_message = (
-        "📈 **Админ-панель**\n\n"
-        f"👥 **Статистика клиентов:**\n"
-        f"   Всего пользователей: **{total_users}**\n"
-        f"   Посетителей бота: **{total_users}**\n\n"
-        f"🎬 **Количество генераций в день:**\n"
-        f"   Всего: **{daily_creations}**\n"
-        f"   Бесплатных: (Эта статистика пока недоступна)\n\n"
+        f"📊 **Статистика за {time_frame}:**\n\n"
+        f"👥 **Всего подписчиков:** {total_subscribers}\n"
+        f"👥 **Всего пользователей:** {total_users}\n\n"
+        f"🎬 **Количество генераций:** {total_generations}\n"
+        f"   - Бесплатных: {free_generations}\n\n"
         f"💳 **Сколько заработано за сегодня:**\n"
-        f"   **{daily_payments}** кредитов (приблизительно **{daily_earnings_mdl}** леев)"
+        f"   **{total_payments}** кредитов (приблизительно **{daily_earnings_mdl}** леев)\n\n"
+        "**Команды для работы:**\n"
+        "/pending - посмотреть список ожидающих запросов\n"
+        "/addcredits <id> <сумма> - начислить кредиты\n\n"
+        "**Для отправки видео:**\n"
+        "Отправь видео в бот с подписью: `/send <ID_запроса>`"
     )
     
-    await message.answer(stats_message)
+    await callback.message.answer(stats_message)
+    await callback.answer()
 
 @router.message(Command("pending"))
 async def show_pending_requests_handler(message: Message) -> None:
@@ -74,9 +95,11 @@ async def send_video_handler(message: Message) -> None:
     if command_text and command_text.startswith('/send'):
         try:
             user_id = int(command_text.split()[1])
-            pending_requests = await get_pending_requests()
             
-            if user_id in [req_user_id for req_user_id, _, _ in pending_requests]:
+            requests = await get_pending_requests()
+            request_exists = any(req_user_id == user_id for req_user_id, _, _ in requests)
+            
+            if request_exists:
                 await message.bot.copy_message(
                     chat_id=user_id,
                     from_chat_id=message.chat.id,

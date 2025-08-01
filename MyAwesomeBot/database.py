@@ -1,11 +1,10 @@
 # database.py
 
 import sqlite3
-from datetime import datetime
+from datetime import datetime, timedelta
 import uuid
 
 DB_NAME = "database.db"
-MAX_DAILY_USES = 50
 
 async def init_db():
     conn = sqlite3.connect(DB_NAME)
@@ -26,6 +25,7 @@ async def init_db():
         CREATE TABLE IF NOT EXISTS video_creations (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             user_id INTEGER,
+            type TEXT,
             timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
         )
     """)
@@ -39,16 +39,6 @@ async def init_db():
         )
     """)
     
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS subscriptions (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            email TEXT UNIQUE,
-            daily_limit INTEGER DEFAULT 50,
-            daily_usage INTEGER DEFAULT 0,
-            last_used DATETIME
-        )
-    """)
-
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS pending_requests (
             user_id INTEGER PRIMARY KEY,
@@ -127,46 +117,52 @@ async def deduct_balance(user_id: int, amount: int) -> bool:
     conn.close()
     return False
 
-async def deduct_balance_and_use_subscription(user_id: int, amount: int) -> tuple[bool, str | None]:
+async def get_total_video_creations(time_frame: str = "all") -> int:
+    """Возвращает общее количество созданных видео за определенный период."""
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
-
-    if not await deduct_balance(user_id, amount):
-        conn.close()
-        return False, None
     
-    today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
-    cursor.execute("UPDATE subscriptions SET daily_usage = 0 WHERE last_used < ?", (today_start,))
-
-    cursor.execute(
-        "SELECT email FROM subscriptions WHERE daily_usage < daily_limit ORDER BY daily_usage ASC LIMIT 1"
-    )
-    subscription_email = cursor.fetchone()
-
-    if subscription_email:
-        subscription_email = subscription_email[0]
-        cursor.execute(
-            "UPDATE subscriptions SET daily_usage = daily_usage + 1, last_used = ? WHERE email = ?",
-            (datetime.now(), subscription_email)
-        )
-        cursor.execute("INSERT INTO video_creations (user_id) VALUES (?)", (user_id,))
-        conn.commit()
-        conn.close()
-        return True, subscription_email
+    if time_frame == "today":
+        start_date = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+        cursor.execute("SELECT COUNT(*) FROM video_creations WHERE timestamp >= ?", (start_date,))
+    elif time_frame == "yesterday":
+        today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+        yesterday = today - timedelta(days=1)
+        cursor.execute("SELECT COUNT(*) FROM video_creations WHERE timestamp >= ? AND timestamp < ?", (yesterday, today))
+    elif time_frame == "week":
+        start_date = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(days=7)
+        cursor.execute("SELECT COUNT(*) FROM video_creations WHERE timestamp >= ?", (start_date,))
+    elif time_frame == "month":
+        start_date = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(days=30)
+        cursor.execute("SELECT COUNT(*) FROM video_creations WHERE timestamp >= ?", (start_date,))
     else:
-        cursor.execute(
-            "UPDATE users SET balance = balance + ? WHERE user_id = ?",
-            (amount, user_id)
-        )
-        conn.commit()
-        conn.close()
-        return False, None
+        cursor.execute("SELECT COUNT(*) FROM video_creations")
+    
+    count = cursor.fetchone()[0]
+    conn.close()
+    return count
 
-async def get_daily_video_creations() -> int:
+async def get_total_free_generations(time_frame: str = "all") -> int:
+    """Возвращает количество бесплатных генераций за определенный период."""
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
-    today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
-    cursor.execute("SELECT COUNT(*) FROM video_creations WHERE timestamp >= ?", (today_start,))
+
+    if time_frame == "today":
+        start_date = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+        cursor.execute("SELECT COUNT(*) FROM video_creations WHERE type = 'free' AND timestamp >= ?", (start_date,))
+    elif time_frame == "yesterday":
+        today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+        yesterday = today - timedelta(days=1)
+        cursor.execute("SELECT COUNT(*) FROM video_creations WHERE type = 'free' AND timestamp >= ? AND timestamp < ?", (yesterday, today))
+    elif time_frame == "week":
+        start_date = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(days=7)
+        cursor.execute("SELECT COUNT(*) FROM video_creations WHERE type = 'free' AND timestamp >= ?", (start_date,))
+    elif time_frame == "month":
+        start_date = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(days=30)
+        cursor.execute("SELECT COUNT(*) FROM video_creations WHERE type = 'free' AND timestamp >= ?", (start_date,))
+    else:
+        cursor.execute("SELECT COUNT(*) FROM video_creations WHERE type = 'free'")
+    
     count = cursor.fetchone()[0]
     conn.close()
     return count
@@ -180,14 +176,6 @@ async def get_daily_payments() -> int:
     conn.close()
     return total_payments if total_payments else 0
 
-async def get_free_generations_used(user_id: int) -> int:
-    conn = sqlite3.connect(DB_NAME)
-    cursor = conn.cursor()
-    cursor.execute("SELECT free_generations_used FROM users WHERE user_id = ?", (user_id,))
-    result = cursor.fetchone()
-    conn.close()
-    return result[0] if result else 0
-
 async def use_free_generation(user_id: int):
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
@@ -197,6 +185,14 @@ async def use_free_generation(user_id: int):
     )
     conn.commit()
     conn.close()
+
+async def get_free_generations_used(user_id: int) -> int:
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+    cursor.execute("SELECT free_generations_used FROM users WHERE user_id = ?", (user_id,))
+    result = cursor.fetchone()
+    conn.close()
+    return result[0] if result else 0
 
 async def get_referral_code(user_id: int) -> str | None:
     conn = sqlite3.connect(DB_NAME)
@@ -233,3 +229,12 @@ async def delete_pending_request(user_id: int):
     cursor.execute("DELETE FROM pending_requests WHERE user_id = ?", (user_id,))
     conn.commit()
     conn.close()
+
+async def get_total_subscribers() -> int:
+    """Возвращает общее количество пользователей, которые использовали бесплатную генерацию (прошли проверку подписки)."""
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+    cursor.execute("SELECT COUNT(*) FROM users WHERE free_generations_used > 0")
+    count = cursor.fetchone()[0]
+    conn.close()
+    return count
