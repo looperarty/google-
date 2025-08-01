@@ -4,7 +4,7 @@ from aiogram import Router, F
 from aiogram.types import Message, CallbackQuery
 from aiogram.filters import Command
 
-from config import ADMIN_ID
+from config import ADMIN_ID, MDL_PER_CREDIT
 from database import get_total_users, get_daily_video_creations, get_daily_payments
 
 router = Router()
@@ -30,6 +30,8 @@ async def send_admin_panel_stats(message: Message):
     daily_creations = await get_daily_video_creations()
     daily_payments = await get_daily_payments()
     
+    daily_earnings_mdl = daily_payments * MDL_PER_CREDIT
+    
     stats_message = (
         "📈 **Админ-панель**\n\n"
         f"👥 **Статистика клиентов:**\n"
@@ -39,7 +41,7 @@ async def send_admin_panel_stats(message: Message):
         f"   Всего: **{daily_creations}**\n"
         f"   Бесплатных: (Эта статистика пока недоступна)\n\n"
         f"💳 **Сколько заработано за сегодня:**\n"
-        f"   **{daily_payments}** кредитов"
+        f"   **{daily_payments}** кредитов (приблизительно **{daily_earnings_mdl}** леев)"
     )
     
     await message.answer(stats_message)
