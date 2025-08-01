@@ -2,7 +2,7 @@
 
 import sqlite3
 from datetime import datetime
-import uuid # <-- Добавили этот импорт
+import uuid
 
 DB_NAME = "database.db"
 MAX_DAILY_USES = 50
@@ -14,6 +14,7 @@ async def init_db():
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS users (
             user_id INTEGER PRIMARY KEY,
+            sequential_id INTEGER UNIQUE,
             username TEXT,
             balance INTEGER DEFAULT 0,
             free_generations_used INTEGER DEFAULT 0,
@@ -50,8 +51,7 @@ async def init_db():
 
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS pending_requests (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER,
+            user_id INTEGER PRIMARY KEY,
             prompt TEXT,
             type TEXT,
             timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
@@ -75,10 +75,30 @@ async def add_or_update_user(user_id: int, username: str):
     cursor.execute("SELECT user_id FROM users WHERE user_id = ?", (user_id,))
     user_exists = cursor.fetchone()
     if not user_exists:
+        cursor.execute("SELECT MAX(sequential_id) FROM users")
+        max_id = cursor.fetchone()[0]
+        new_id = (max_id or 0) + 1
+        
         referral_code = str(uuid.uuid4())[:8]
-        cursor.execute("INSERT INTO users (user_id, username, free_generations_used, referral_code) VALUES (?, ?, ?, ?)", (user_id, username, 0, referral_code))
+        cursor.execute("INSERT INTO users (user_id, sequential_id, username, free_generations_used, referral_code) VALUES (?, ?, ?, ?, ?)", (user_id, new_id, username, 0, referral_code))
     conn.commit()
     conn.close()
+
+async def get_total_users() -> int:
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+    cursor.execute("SELECT COUNT(*) FROM users")
+    count = cursor.fetchone()[0]
+    conn.close()
+    return count
+
+async def get_user_sequential_id(user_id: int) -> int:
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+    cursor.execute("SELECT sequential_id FROM users WHERE user_id = ?", (user_id,))
+    result = cursor.fetchone()
+    conn.close()
+    return result[0] if result else None
 
 async def add_balance(user_id: int, amount: int):
     conn = sqlite3.connect(DB_NAME)
@@ -142,14 +162,6 @@ async def deduct_balance_and_use_subscription(user_id: int, amount: int) -> tupl
         conn.close()
         return False, None
 
-async def get_total_users() -> int:
-    conn = sqlite3.connect(DB_NAME)
-    cursor = conn.cursor()
-    cursor.execute("SELECT COUNT(*) FROM users")
-    count = cursor.fetchone()[0]
-    conn.close()
-    return count
-
 async def get_daily_video_creations() -> int:
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
@@ -167,35 +179,6 @@ async def get_daily_payments() -> int:
     total_payments = cursor.fetchone()[0]
     conn.close()
     return total_payments if total_payments else 0
-
-async def add_subscription(email: str) -> bool:
-    conn = sqlite3.connect(DB_NAME)
-    cursor = conn.cursor()
-    try:
-        cursor.execute("INSERT INTO subscriptions (email, daily_limit, daily_usage) VALUES (?, ?, ?)", 
-                       (email, MAX_DAILY_USES, 0))
-        conn.commit()
-        return True
-    except sqlite3.IntegrityError:
-        return False
-    finally:
-        conn.close()
-
-async def get_all_subscriptions() -> list:
-    conn = sqlite3.connect(DB_NAME)
-    cursor = conn.cursor()
-    cursor.execute("SELECT email, daily_usage, daily_limit FROM subscriptions")
-    subscriptions = cursor.fetchall()
-    conn.close()
-    return subscriptions
-
-async def reset_all_subscriptions() -> bool:
-    conn = sqlite3.connect(DB_NAME)
-    cursor = conn.cursor()
-    cursor.execute("UPDATE subscriptions SET daily_usage = 0")
-    conn.commit()
-    conn.close()
-    return True
 
 async def get_free_generations_used(user_id: int) -> int:
     conn = sqlite3.connect(DB_NAME)
@@ -228,7 +211,7 @@ async def add_pending_request(user_id: int, prompt: str, type: str):
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
     cursor.execute(
-        "INSERT INTO pending_requests (user_id, prompt, type) VALUES (?, ?, ?)",
+        "INSERT OR REPLACE INTO pending_requests (user_id, prompt, type) VALUES (?, ?, ?)",
         (user_id, prompt, type)
     )
     conn.commit()
@@ -238,15 +221,15 @@ async def get_pending_requests() -> list:
     """Возвращает все ожидающие запросы."""
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
-    cursor.execute("SELECT id, user_id, prompt, type FROM pending_requests ORDER BY timestamp ASC")
+    cursor.execute("SELECT user_id, prompt, type FROM pending_requests ORDER BY timestamp ASC")
     requests = cursor.fetchall()
     conn.close()
     return requests
 
-async def delete_pending_request(request_id: int):
+async def delete_pending_request(user_id: int):
     """Удаляет запрос из списка."""
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
-    cursor.execute("DELETE FROM pending_requests WHERE id = ?", (request_id,))
+    cursor.execute("DELETE FROM pending_requests WHERE user_id = ?", (user_id,))
     conn.commit()
     conn.close()

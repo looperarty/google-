@@ -5,7 +5,7 @@ from aiogram.types import Message
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 
-from database import get_user_balance, deduct_balance_and_use_subscription, add_pending_request
+from database import get_user_balance, deduct_balance_and_use_subscription, add_pending_request, get_user_sequential_id
 from handlers.menu_handler import create_main_menu_keyboard
 from handlers.common_handlers import create_back_keyboard, delete_message_if_exists, simulate_progress_bar
 from config import ADMIN_ID
@@ -50,13 +50,17 @@ async def process_video_prompt(message: Message, state: FSMContext, bot: Bot):
     user_prompt = message.text
     user_id = message.from_user.id
 
+    sequential_id = await get_user_sequential_id(user_id)
+
     await simulate_progress_bar(message, bot)
     
-    # Отправляем промт админу и сохраняем его в базу данных
     await add_pending_request(user_id, user_prompt, "paid")
     await bot.send_message(
         chat_id=ADMIN_ID,
-        text=f"Новый запрос на видео от пользователя `{user_id}`. Промт:\n\n**`{user_prompt}`**",
+        text=f"📝 **Новый запрос на платное видео!**\n\n"
+             f"**Порядковый номер:** `{sequential_id}`\n"
+             f"**ID пользователя:** `{user_id}`\n"
+             f"**Промт:** `{user_prompt}`"
     )
     
     keyboard = await create_main_menu_keyboard()
