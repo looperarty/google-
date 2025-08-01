@@ -5,7 +5,7 @@ from aiogram.types import Message
 from aiogram.filters import Command
 
 from config import ADMIN_ID
-from database import get_total_users, get_daily_video_creations, get_daily_payments, add_subscription, get_all_subscriptions, reset_all_subscriptions, add_balance
+from database import get_total_users, get_daily_video_creations, get_daily_payments, add_subscription, get_all_subscriptions, reset_all_subscriptions, add_balance, get_pending_requests, delete_pending_request
 
 router = Router()
 
@@ -27,10 +27,11 @@ async def admin_panel_handler(message: Message) -> None:
         "/addsub <email>\n"
         "/listsubs\n"
         "/resetsubs\n\n"
-        "**Команда для отправки видео пользователю:**\n"
-        "Отправь видео в бот с подписью: `/send ID_пользователя`\n\n"
-        "**Команда для начисления кредитов:**\n"
-        "Отправь: `/addcredits ID_пользователя сумма`"
+        "**Команды для работы:**\n"
+        "/pending - посмотреть список ожидающих запросов\n"
+        "/addcredits <id> <сумма> - начислить кредиты\n\n"
+        "**Для отправки видео:**\n"
+        "Отправь видео в бот с подписью: `/send <ID_запроса>`"
     )
     
     await message.answer(stats_message)
@@ -78,28 +79,59 @@ async def reset_subscriptions_handler(message: Message) -> None:
     await reset_all_subscriptions()
     await message.answer("Счётчики использования всех подписок сброшены.")
 
+@router.message(Command("pending"))
+async def show_pending_requests_handler(message: Message) -> None:
+    if message.from_user.id != ADMIN_ID:
+        return
+
+    requests = await get_pending_requests()
+    
+    if not requests:
+        await message.answer("Список ожидающих запросов пуст.")
+        return
+
+    requests_message = "📝 **Ожидающие запросы:**\n\n"
+    for request_id, user_id, prompt, type in requests:
+        requests_message += f"**ID запроса:** `{request_id}`\n"
+        requests_message += f"**ID пользователя:** `{user_id}`\n"
+        requests_message += f"**Тип:** `{type}`\n"
+        requests_message += f"**Промт:** `{prompt}`\n\n"
+    
+    await message.answer(requests_message)
+
 @router.message(F.from_user.id == ADMIN_ID, F.video)
 async def send_video_handler(message: Message) -> None:
-    """Отправляет видео пользователю по ID."""
     command_text = message.caption
     
     if command_text and command_text.startswith('/send'):
         try:
-            user_id = int(command_text.split()[1])
-            await message.bot.copy_message(
-                chat_id=user_id,
-                from_chat_id=message.chat.id,
-                message_id=message.message_id
-            )
-            await message.answer(f"Видео успешно отправлено пользователю `{user_id}`.")
+            request_id = int(command_text.split()[1])
+            pending_requests = await get_pending_requests()
+            
+            user_id = None
+            for req_id, req_user_id, _, _ in pending_requests:
+                if req_id == request_id:
+                    user_id = req_user_id
+                    break
+            
+            if user_id:
+                await message.bot.copy_message(
+                    chat_id=user_id,
+                    from_chat_id=message.chat.id,
+                    message_id=message.message_id
+                )
+                await message.answer(f"Видео успешно отправлено пользователю `{user_id}`.")
+                await delete_pending_request(request_id)
+            else:
+                await message.answer(f"Запрос с ID `{request_id}` не найден.")
+
         except (ValueError, IndexError):
-            await message.answer("Ошибка в команде. Используйте формат: `/send ID_пользователя`")
+            await message.answer("Ошибка в команде. Используйте формат: `/send ID_запроса`")
         except Exception as e:
-            await message.answer(f"Не удалось отправить видео пользователю `{user_id}`. Ошибка: {e}")
+            await message.answer(f"Не удалось отправить видео. Ошибка: {e}")
 
 @router.message(Command("addcredits"))
 async def add_credits_handler(message: Message) -> None:
-    """Начисляет кредиты пользователю."""
     if message.from_user.id != ADMIN_ID:
         return
     

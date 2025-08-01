@@ -2,16 +2,12 @@
 
 import sqlite3
 from datetime import datetime
-import uuid
+import uuid # <-- Добавили этот импорт
 
-# Путь к файлу базы данных
 DB_NAME = "database.db"
-
-# Максимальное количество использований одной подписки в день
 MAX_DAILY_USES = 50
 
 async def init_db():
-    """Инициализирует базу данных и создаёт таблицы."""
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
 
@@ -24,7 +20,7 @@ async def init_db():
             referral_code TEXT UNIQUE
         )
     """)
-
+    
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS video_creations (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -52,11 +48,20 @@ async def init_db():
         )
     """)
 
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS pending_requests (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER,
+            prompt TEXT,
+            type TEXT,
+            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+
     conn.commit()
     conn.close()
 
 async def get_user_balance(user_id: int) -> int:
-    """Возвращает баланс пользователя."""
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
     cursor.execute("SELECT balance FROM users WHERE user_id = ?", (user_id,))
@@ -65,19 +70,17 @@ async def get_user_balance(user_id: int) -> int:
     return result[0] if result else 0
 
 async def add_or_update_user(user_id: int, username: str):
-    """Добавляет нового пользователя или обновляет существующего."""
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
     cursor.execute("SELECT user_id FROM users WHERE user_id = ?", (user_id,))
     user_exists = cursor.fetchone()
     if not user_exists:
-        referral_code = str(uuid.uuid4())[:8] # Генерируем уникальный код
+        referral_code = str(uuid.uuid4())[:8]
         cursor.execute("INSERT INTO users (user_id, username, free_generations_used, referral_code) VALUES (?, ?, ?, ?)", (user_id, username, 0, referral_code))
     conn.commit()
     conn.close()
 
 async def add_balance(user_id: int, amount: int):
-    """Увеличивает баланс пользователя и записывает платёж."""
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
     cursor.execute(
@@ -89,7 +92,6 @@ async def add_balance(user_id: int, amount: int):
     conn.close()
     
 async def deduct_balance(user_id: int, amount: int) -> bool:
-    """Списывает кредиты."""
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
     cursor.execute("SELECT balance FROM users WHERE user_id = ?", (user_id,))
@@ -106,7 +108,6 @@ async def deduct_balance(user_id: int, amount: int) -> bool:
     return False
 
 async def deduct_balance_and_use_subscription(user_id: int, amount: int) -> tuple[bool, str | None]:
-    """Списывает кредиты, находит подписку и записывает использование."""
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
 
@@ -142,7 +143,6 @@ async def deduct_balance_and_use_subscription(user_id: int, amount: int) -> tupl
         return False, None
 
 async def get_total_users() -> int:
-    """Возвращает общее количество пользователей."""
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
     cursor.execute("SELECT COUNT(*) FROM users")
@@ -151,7 +151,6 @@ async def get_total_users() -> int:
     return count
 
 async def get_daily_video_creations() -> int:
-    """Возвращает количество созданных видео за текущий день."""
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
     today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
@@ -161,7 +160,6 @@ async def get_daily_video_creations() -> int:
     return count
 
 async def get_daily_payments() -> int:
-    """Возвращает общую сумму пополнений за текущий день."""
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
     today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
@@ -171,7 +169,6 @@ async def get_daily_payments() -> int:
     return total_payments if total_payments else 0
 
 async def add_subscription(email: str) -> bool:
-    """Добавляет новую подписку."""
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
     try:
@@ -185,7 +182,6 @@ async def add_subscription(email: str) -> bool:
         conn.close()
 
 async def get_all_subscriptions() -> list:
-    """Возвращает список всех подписок."""
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
     cursor.execute("SELECT email, daily_usage, daily_limit FROM subscriptions")
@@ -194,7 +190,6 @@ async def get_all_subscriptions() -> list:
     return subscriptions
 
 async def reset_all_subscriptions() -> bool:
-    """Сбрасывает счётчик использования всех подписок."""
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
     cursor.execute("UPDATE subscriptions SET daily_usage = 0")
@@ -203,7 +198,6 @@ async def reset_all_subscriptions() -> bool:
     return True
 
 async def get_free_generations_used(user_id: int) -> int:
-    """Возвращает количество использованных бесплатных генераций."""
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
     cursor.execute("SELECT free_generations_used FROM users WHERE user_id = ?", (user_id,))
@@ -212,7 +206,6 @@ async def get_free_generations_used(user_id: int) -> int:
     return result[0] if result else 0
 
 async def use_free_generation(user_id: int):
-    """Отмечает, что бесплатная генерация была использована."""
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
     cursor.execute(
@@ -223,10 +216,37 @@ async def use_free_generation(user_id: int):
     conn.close()
 
 async def get_referral_code(user_id: int) -> str | None:
-    """Возвращает реферальный код пользователя."""
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
     cursor.execute("SELECT referral_code FROM users WHERE user_id = ?", (user_id,))
     result = cursor.fetchone()
     conn.close()
     return result[0] if result else None
+    
+async def add_pending_request(user_id: int, prompt: str, type: str):
+    """Добавляет запрос в список ожидающих."""
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+    cursor.execute(
+        "INSERT INTO pending_requests (user_id, prompt, type) VALUES (?, ?, ?)",
+        (user_id, prompt, type)
+    )
+    conn.commit()
+    conn.close()
+
+async def get_pending_requests() -> list:
+    """Возвращает все ожидающие запросы."""
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+    cursor.execute("SELECT id, user_id, prompt, type FROM pending_requests ORDER BY timestamp ASC")
+    requests = cursor.fetchall()
+    conn.close()
+    return requests
+
+async def delete_pending_request(request_id: int):
+    """Удаляет запрос из списка."""
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM pending_requests WHERE id = ?", (request_id,))
+    conn.commit()
+    conn.close()

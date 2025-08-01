@@ -5,7 +5,7 @@ from aiogram.types import Message
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 
-from database import get_user_balance, deduct_balance_and_use_subscription
+from database import get_user_balance, deduct_balance_and_use_subscription, add_pending_request
 from handlers.menu_handler import create_main_menu_keyboard
 from handlers.common_handlers import create_back_keyboard, delete_message_if_exists, simulate_progress_bar
 from config import ADMIN_ID
@@ -24,7 +24,6 @@ async def start_video_creation(message: Message, state: FSMContext, bot: Bot):
     """Начинает процесс создания видео."""
     await delete_message_if_exists(bot, message.chat.id, message.message_id)
 
-    # Проверяем, если это админ, пропускаем проверку баланса
     if message.from_user.id != ADMIN_ID:
         balance = await get_user_balance(message.from_user.id)
         if balance < VIDEO_COST:
@@ -53,18 +52,16 @@ async def process_video_prompt(message: Message, state: FSMContext, bot: Bot):
 
     await simulate_progress_bar(message, bot)
     
-    # Отправляем промт админу
+    # Отправляем промт админу и сохраняем его в базу данных
+    await add_pending_request(user_id, user_prompt, "paid")
     await bot.send_message(
         chat_id=ADMIN_ID,
-        text=f"Новый запрос на видео от пользователя `{user_id}`:\n\n**Промт:** `{user_prompt}`",
+        text=f"Новый запрос на видео от пользователя `{user_id}`. Промт:\n\n**`{user_prompt}`**",
     )
-    
-    # Сохраняем состояние для ответа админа
-    await state.set_state(VideoCreationState.waiting_for_admin_response)
     
     keyboard = await create_main_menu_keyboard()
     await message.answer(
-        "Твой запрос принят! Мы создадим видео и отправим его тебе. Это займет некоторое время.",
+        "Твой запрос принят! Мы создадим видео и отправим его тебе.",
         reply_markup=keyboard
     )
     await state.clear()

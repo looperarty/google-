@@ -7,7 +7,7 @@ from aiogram.fsm.state import State, StatesGroup
 
 from handlers.common_handlers import create_back_keyboard, simulate_progress_bar, delete_message_if_exists
 from handlers.menu_handler import create_main_menu_keyboard
-from database import get_free_generations_used, use_free_generation
+from database import get_free_generations_used, use_free_generation, add_pending_request
 from config import PROMPTS_CHANNEL_LINK, ADMIN_ID
 
 router = Router()
@@ -22,7 +22,6 @@ async def free_generation_handler(message: Message, state: FSMContext, bot: Bot)
     """Обрабатывает кнопку 'Бесплатная генерация'."""
     await delete_message_if_exists(bot, message.chat.id, message.message_id)
     
-    # Проверяем, если это админ, пропускаем проверку бесплатных генераций
     if message.from_user.id != ADMIN_ID:
         free_uses = await get_free_generations_used(message.from_user.id)
         if free_uses > 0:
@@ -53,9 +52,11 @@ async def process_free_prompt(message: Message, state: FSMContext, bot: Bot):
     if user_id != ADMIN_ID:
         await use_free_generation(user_id)
     
+    # Сохраняем запрос в базу данных
+    await add_pending_request(user_id, user_prompt, "free")
     await bot.send_message(
         chat_id=ADMIN_ID,
-        text=f"Новый запрос на БЕСПЛАТНОЕ видео от пользователя `{user_id}`:\n\n**Промт:** `{user_prompt}`",
+        text=f"Новый запрос на БЕСПЛАТНОЕ видео от пользователя `{user_id}`. Промт:\n\n**`{user_prompt}`**",
     )
     
     keyboard = await create_main_menu_keyboard()
