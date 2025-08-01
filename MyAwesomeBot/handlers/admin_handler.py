@@ -1,7 +1,7 @@
 # handlers/admin_handler.py
 
 from aiogram import Router, F
-from aiogram.types import Message
+from aiogram.types import Message, CallbackQuery
 from aiogram.filters import Command
 
 from config import ADMIN_ID
@@ -14,6 +14,18 @@ async def admin_panel_handler(message: Message) -> None:
     if message.from_user.id != ADMIN_ID:
         return
     
+    await send_admin_panel_stats(message)
+
+@router.callback_query(F.data == "show_admin_panel")
+async def show_admin_panel_callback(callback: CallbackQuery) -> None:
+    if callback.from_user.id != ADMIN_ID:
+        return
+    
+    await send_admin_panel_stats(callback.message)
+    await callback.answer() # Убираем "часики" с кнопки
+
+async def send_admin_panel_stats(message: Message):
+    """Отправляет сообщение с админ-статистикой."""
     total_users = await get_total_users()
     daily_creations = await get_daily_video_creations()
     daily_payments = await get_daily_payments()
