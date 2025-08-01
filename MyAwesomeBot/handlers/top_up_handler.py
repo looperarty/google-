@@ -23,7 +23,8 @@ async def create_payment_methods_keyboard() -> ReplyKeyboardMarkup:
     keyboard = ReplyKeyboardMarkup(
         keyboard=[
             [KeyboardButton(text="Номер карты")],
-            [KeyboardButton(text="MIA (Молдова)")]
+            [KeyboardButton(text="MIA (Молдова)")],
+            [KeyboardButton(text="⬅️ Назад")]
         ],
         resize_keyboard=True,
         one_time_keyboard=True
@@ -35,6 +36,7 @@ async def create_payment_confirmation_keyboard() -> ReplyKeyboardMarkup:
     keyboard = ReplyKeyboardMarkup(
         keyboard=[
             [KeyboardButton(text="✅ Я оплатил")],
+            [KeyboardButton(text="⬅️ Назад")]
         ],
         resize_keyboard=True,
         one_time_keyboard=True
@@ -50,15 +52,28 @@ async def start_top_up(message: Message, state: FSMContext, bot: Bot):
     )
     await state.update_data(bot_message_id=sent_message.message_id)
     await state.set_state(TopUpState.waiting_for_payment_method)
+
+@router.message(F.text == "⬅️ Назад")
+async def back_to_main_menu_handler(message: Message, state: FSMContext, bot: Bot):
+    """Обрабатывает кнопку 'Назад' и возвращает в главное меню."""
+    state_data = await state.get_data()
+    bot_message_id = state_data.get('bot_message_id')
     
+    await delete_message_if_exists(bot, message.chat.id, bot_message_id)
+    await delete_message_if_exists(bot, message.chat.id, message.message_id)
+    
+    await state.clear()
+    keyboard = await create_main_menu_keyboard()
+    await message.answer("Вы вернулись в главное меню.", reply_markup=keyboard)
+
 @router.message(TopUpState.waiting_for_payment_method, F.text == "Номер карты")
 async def process_card_payment(message: Message, state: FSMContext, bot: Bot):
     """Обрабатывает выбор 'Номер карты'."""
     await delete_message_if_exists(bot, message.chat.id, (await state.get_data()).get('bot_message_id'))
     await delete_message_if_exists(bot, message.chat.id, message.message_id)
-    
+
     # === ВСТАВЬ СЮДА СВОЙ НОМЕР КАРТЫ ===
-    card_number = "5188 0402 8734 6811" # Например: "1234 5678 9123 4567"
+    card_number = "ТВОЙ_НОМЕР_КАРТЫ" # Например: "1234 5678 9123 4567"
     
     sent_message = await message.answer(
         f"Чтобы пополнить баланс, переведите деньги на номер карты:\n\n**{card_number}**\n\nКогда оплатите, нажмите кнопку ниже:",
@@ -72,9 +87,9 @@ async def process_mia_payment(message: Message, state: FSMContext, bot: Bot):
     """Обрабатывает выбор 'MIA (Молдова)'."""
     await delete_message_if_exists(bot, message.chat.id, (await state.get_data()).get('bot_message_id'))
     await delete_message_if_exists(bot, message.chat.id, message.message_id)
-    
+
     # === ВСТАВЬ СЮДА СВОЙ НОМЕР ТЕЛЕФОНА ДЛЯ MIA ===
-    phone_number = "+37379079434" # Например: "+373 69 123 456"
+    phone_number = "ТВОЙ_НОМЕР_ТЕЛЕФОНА" # Например: "+373 69 123 456"
     
     sent_message = await message.answer(
         f"Чтобы пополнить баланс через MIA, переведите деньги по номеру:\n\n**{phone_number}**\n\nКогда оплатите, нажмите кнопку ниже:",

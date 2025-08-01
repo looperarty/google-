@@ -5,7 +5,7 @@ from aiogram.types import Message
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 
-from database import get_user_balance, deduct_balance_and_use_subscription, add_pending_request, get_user_sequential_id
+from database import get_user_balance, deduct_balance, add_pending_request, get_user_sequential_id
 from handlers.menu_handler import create_main_menu_keyboard
 from handlers.common_handlers import create_back_keyboard, delete_message_if_exists, simulate_progress_bar
 from config import ADMIN_ID
@@ -51,6 +51,9 @@ async def process_video_prompt(message: Message, state: FSMContext, bot: Bot):
     user_id = message.from_user.id
 
     sequential_id = await get_user_sequential_id(user_id)
+    
+    if user_id != ADMIN_ID:
+        await deduct_balance(user_id, VIDEO_COST)
 
     await simulate_progress_bar(message, bot)
     

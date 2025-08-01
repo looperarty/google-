@@ -15,67 +15,52 @@ async def admin_panel_handler(message: Message) -> None:
     if message.from_user.id != ADMIN_ID:
         return
     
-    await send_admin_panel_stats_selector(message)
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="📊 Общая статистика", callback_data="show_stats_all")],
+        [InlineKeyboardButton(text="📝 Ожидающие запросы", callback_data="show_pending_requests")],
+    ])
+    await message.answer("🔑 **Админ-панель**\n\nВыберите, что хотите посмотреть:", reply_markup=keyboard)
 
-@router.callback_query(F.data == "show_admin_panel")
-async def show_admin_panel_callback(callback: CallbackQuery) -> None:
+
+@router.callback_query(F.data == "show_stats_all")
+async def show_all_stats_callback(callback: CallbackQuery):
     if callback.from_user.id != ADMIN_ID:
         return
-    
-    await send_admin_panel_stats_selector(callback.message)
-    await callback.answer()
 
-async def send_admin_panel_stats_selector(message: Message):
-    keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="📊 Сегодня", callback_data="stats_today")],
-        [InlineKeyboardButton(text="🗓️ Вчера", callback_data="stats_yesterday")],
-        [InlineKeyboardButton(text="📆 Неделя", callback_data="stats_week")],
-        [InlineKeyboardButton(text="📅 Месяц", callback_data="stats_month")],
-        [InlineKeyboardButton(text="All", callback_data="stats_all")]
-    ])
-    
-    await message.answer("📊 **Выберите период для статистики:**", reply_markup=keyboard)
-
-
-@router.callback_query(F.data.startswith("stats_"))
-async def show_stats_by_time_frame(callback: CallbackQuery):
-    time_frame = callback.data.split("_")[1]
-    
     total_users = await get_total_users()
-    total_generations = await get_total_video_creations(time_frame)
-    free_generations = await get_total_free_generations(time_frame)
-    total_payments = await get_daily_payments()
+    total_generations = await get_total_video_creations()
+    free_generations = await get_total_free_generations()
     total_subscribers = await get_total_subscribers()
+    total_payments = await get_daily_payments()
     
-    daily_earnings_mdl = total_payments * MDL_PER_CREDIT
-
     stats_message = (
-        f"📊 **Статистика за {time_frame}:**\n\n"
+        "📊 **Общая статистика:**\n\n"
         f"👥 **Всего подписчиков:** {total_subscribers}\n"
         f"👥 **Всего пользователей:** {total_users}\n\n"
         f"🎬 **Количество генераций:** {total_generations}\n"
         f"   - Бесплатных: {free_generations}\n\n"
-        f"💳 **Сколько заработано за сегодня:**\n"
-        f"   **{total_payments}** кредитов (приблизительно **{daily_earnings_mdl}** леев)\n\n"
+        f"💳 **Заработано за сегодня:**\n"
+        f"   **{total_payments}** кредитов\n\n"
         "**Команды для работы:**\n"
         "/pending - посмотреть список ожидающих запросов\n"
         "/addcredits <id> <сумма> - начислить кредиты\n\n"
         "**Для отправки видео:**\n"
-        "Отправь видео в бот с подписью: `/send <ID_запроса>`"
+        "Отправь видео в бот с подписью: `/send <ID_пользователя>`"
     )
     
     await callback.message.answer(stats_message)
     await callback.answer()
 
-@router.message(Command("pending"))
-async def show_pending_requests_handler(message: Message) -> None:
-    if message.from_user.id != ADMIN_ID:
+
+@router.callback_query(F.data == "show_pending_requests")
+async def show_pending_requests_callback(callback: CallbackQuery) -> None:
+    if callback.from_user.id != ADMIN_ID:
         return
 
     requests = await get_pending_requests()
     
     if not requests:
-        await message.answer("Список ожидающих запросов пуст.")
+        await callback.message.answer("Список ожидающих запросов пуст.")
         return
 
     requests_message = "📝 **Ожидающие запросы:**\n\n"
@@ -86,7 +71,8 @@ async def show_pending_requests_handler(message: Message) -> None:
         requests_message += f"**Тип:** <code>{type}</code>\n"
         requests_message += f"**Промт:** <code>{escape(prompt)}</code>\n\n"
     
-    await message.answer(requests_message)
+    await callback.message.answer(requests_message)
+    await callback.answer()
 
 @router.message(F.from_user.id == ADMIN_ID, F.video)
 async def send_video_handler(message: Message) -> None:
