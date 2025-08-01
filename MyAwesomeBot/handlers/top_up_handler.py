@@ -1,7 +1,7 @@
 # handlers/top_up_handler.py
 
 from aiogram import Router, F, Bot
-from aiogram.types import Message, ReplyKeyboardMarkup, KeyboardButton
+from aiogram.types import Message, ReplyKeyboardRemove, ReplyKeyboardMarkup, KeyboardButton
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 
@@ -56,9 +56,12 @@ async def process_card_payment(message: Message, state: FSMContext, bot: Bot):
     """Обрабатывает выбор 'Номер карты'."""
     await delete_message_if_exists(bot, message.chat.id, (await state.get_data()).get('bot_message_id'))
     await delete_message_if_exists(bot, message.chat.id, message.message_id)
-
+    
+    # === ВСТАВЬ СЮДА СВОЙ НОМЕР КАРТЫ ===
+    card_number = "5188 0402 8734 6811" # Например: "1234 5678 9123 4567"
+    
     sent_message = await message.answer(
-        "Чтобы пополнить баланс, переведите деньги на номер карты:\n\n**1234 5678 9012 3456**\n\nКогда оплатите, нажмите кнопку ниже:",
+        f"Чтобы пополнить баланс, переведите деньги на номер карты:\n\n**{card_number}**\n\nКогда оплатите, нажмите кнопку ниже:",
         reply_markup=await create_payment_confirmation_keyboard()
     )
     await state.update_data(bot_message_id=sent_message.message_id)
@@ -69,9 +72,12 @@ async def process_mia_payment(message: Message, state: FSMContext, bot: Bot):
     """Обрабатывает выбор 'MIA (Молдова)'."""
     await delete_message_if_exists(bot, message.chat.id, (await state.get_data()).get('bot_message_id'))
     await delete_message_if_exists(bot, message.chat.id, message.message_id)
-
+    
+    # === ВСТАВЬ СЮДА СВОЙ НОМЕР ТЕЛЕФОНА ДЛЯ MIA ===
+    phone_number = "+37379079434" # Например: "+373 69 123 456"
+    
     sent_message = await message.answer(
-        "Чтобы пополнить баланс через MIA, переведите деньги по номеру:\n\n**+373 69 123 456**\n\nКогда оплатите, нажмите кнопку ниже:",
+        f"Чтобы пополнить баланс через MIA, переведите деньги по номеру:\n\n**{phone_number}**\n\nКогда оплатите, нажмите кнопку ниже:",
         reply_markup=await create_payment_confirmation_keyboard()
     )
     await state.update_data(bot_message_id=sent_message.message_id)
@@ -96,13 +102,11 @@ async def process_top_up_amount(message: Message, state: FSMContext, bot: Bot):
     await delete_message_if_exists(bot, message.chat.id, (await state.get_data()).get('bot_message_id'))
     await delete_message_if_exists(bot, message.chat.id, message.message_id)
     
-    # Отправляем подтверждение оплаты админу
     await bot.send_message(
         chat_id=ADMIN_ID,
         text=f"Новое подтверждение оплаты от пользователя `{message.from_user.id}`:\n\n"
              "Пожалуйста, проверьте и начислите кредиты командой: `/addcredits {ID_пользователя} {сумма}`"
     )
-    # Пересылаем сообщение пользователя админу
     await bot.forward_message(
         chat_id=ADMIN_ID,
         from_chat_id=message.chat.id,
